@@ -1,0 +1,313 @@
+<?php
+
+$user_mapping = array(
+	'Chiedu Nosegbe' => array(
+		'Chiedu Nosegbe',
+		'chiedu',
+	),
+	'Ingus Neilands' => array(
+		'Ingus Neilands',
+		'ingus',
+	),
+	'Matthew Wardle' => array(
+		'Matthew Wardle',
+	),
+	'Janis Koselevs' => array(
+		'jankosacc',
+	),
+	'Oleg Gorbik' => array(
+		'Oleg Gorbik',
+		'OlegGS',
+	),
+	'Gatis Priede' => array(
+		'Gatis Priede',
+		'gatispriede',
+	),
+	'Evita Knospina' => array(
+		'Evita Knospina',
+		'knospina',
+	),
+	'Martins Sipenko' => array(
+		'Martins Sipenko',
+		'martinssipenko',
+	),
+	'Joseph Sheppard' => array(
+		'Joseph Sheppard',
+	),
+	'Luke Austin' => array(
+		'Luke Austin',
+		'LukeAustin',
+	),
+	'Scott Gibson' => array(
+		'Scott Gibson',
+	),
+	'Madars Langenfelds' => array(
+		'Madars Langenfelds',
+	),
+	'Denys Temchenko' => array(
+		'Denys Temchenko',
+	),
+	'Sergejs Savrancuks' => array(
+		'Sergejs Savrancuks',
+		'sergesav',
+	),
+	'Shahpoor Jabarkhiel' => array(
+		'Shahpoor Jabarkhiel',
+		'shahpoor.jabarkhiel',
+		'sjabarkhiel',
+	),
+	'Matin Nayob' => array(
+		'Matin Nayob',
+		'matin-nayob',
+	),
+	'Jennifer Sharps' => array(
+		'Jennifer Sharps',
+		'jenniferlsharps',
+		'jsharps',
+
+	),
+	'Kieran Rolstone' => array(
+		'Kieran Rolstone',
+		'krolstone',
+	),
+	'Peter Vazquez' => array(
+		'Peter Vazquez',
+		'pvazquez',
+		'Peter Vazquez',
+	),
+);
+
+$repo_storage = '/home/vagrant/files/gh-json-post/repos';
+$allowed_ips  = array(
+	'127.0.0.1',
+);
+
+if ( !in_array( $_SERVER['REMOTE_ADDR'], $allowed_ips ) ) {
+	ghh_die();
+}
+
+
+if ( !isset( $_POST['payload'] ) ) {
+	ghh_die();
+}
+
+
+$data    = json_decode( $_POST['payload'] );
+$gh_repo = new GitHub_Repository( $data->repository->name, $data->repository->owner->name, $data->repository->url, $repo_storage );
+unset( $data );
+
+
+echo 'ok';
+echo "\n";
+
+
+// Functions blow here
+
+function ghh_die() {
+	echo 'Noop!';
+	die;
+}
+
+function pretty_json( $json ) {
+	$result      = '';
+	$pos         = 0;
+	$strLen      = strlen( $json );
+	$indentStr   = '  ';
+	$newLine     = "\n";
+	$prevChar    = '';
+	$outOfQuotes = TRUE;
+
+	for ( $i = 0; $i <= $strLen; $i++ ) {
+		// Grab the next character in the string.
+		$char = substr( $json, $i, 1 );
+
+		// Are we inside a quoted string?
+		if ( $char == '"' && $prevChar != '\\' ) {
+			$outOfQuotes = !$outOfQuotes;
+
+			// If this character is the end of an element,
+			// output a new line and indent the next line.
+		} else if ( ( $char == '}' || $char == ']' ) && $outOfQuotes ) {
+				$result .= $newLine;
+				$pos --;
+				for ( $j = 0; $j < $pos; $j++ ) {
+					$result .= $indentStr;
+				}
+			}
+
+		// Add the character to the result string.
+		$result .= $char;
+
+		// If the last character was the beginning of an element,
+		// output a new line and indent the next line.
+		if ( ( $char == ',' || $char == '{' || $char == '[' ) && $outOfQuotes ) {
+			$result .= $newLine;
+			if ( $char == '{' || $char == '[' ) {
+				$pos ++;
+			}
+
+			for ( $j = 0; $j < $pos; $j++ ) {
+				$result .= $indentStr;
+			}
+		}
+
+		$prevChar = $char;
+	}
+
+	return $result;
+}
+
+function recursiveArraySearchAll($haystack, $needle, $index = null) {
+    $aIt     = new RecursiveArrayIterator($haystack);
+    $it    = new RecursiveIteratorIterator($aIt);
+    $resultkeys;
+
+    while($it->valid()) {
+    if (((isset($index) AND ($it->key() == $index)) OR (!isset($index))) AND (strpos($it->current(), $needle)!==false)) { //$it->current() == $needle
+    $resultkeys[]=$aIt->key(); //return $aIt->key();
+    }
+
+    $it->next();
+    }
+    return $resultkeys;  // return all finding in an array
+
+}
+
+class GitHub_Repository {
+	public $name;
+	public $owner;
+	public $url;
+	public $repo_storage;
+
+	public function __construct( $name = '', $owner = '', $url = '', $repo_storage = '' ) {
+		$this->name         = $name;
+		$this->owner        = $owner;
+		$this->url          = $url;
+		$this->repo_storage = $repo_storage;
+
+		if ( !$this->exists() ) {
+			$this->clone_repo();
+		}
+
+		$this->checkout( $this->get_branches() );
+		$this->pull();
+
+
+
+		$this->store_results( pretty_json( json_encode( $this->get_commit_violations() ) ) );
+	}
+
+	public function exists() {
+
+		if ( is_dir( $this->repo_storage . '/' . $this->owner . '/' . $this->name ) ) {
+			return TRUE;
+		}
+
+		return FALSE;
+	}
+
+	public function clone_repo() {
+		echo  'cd ' . $this->repo_storage . ' && git clone ' . $this->url . ' ' . $this->owner . '/' . $this->name . "\n";
+		exec( 'cd ' . $this->repo_storage . ' && git clone ' . $this->url . ' ' . $this->owner . '/' . $this->name );
+
+		return TRUE;
+	}
+
+	public function get_branches() {
+		$output   = shell_exec( 'cd ' . $this->repo_storage . '/' . $this->owner . '/' . $this->name . ' && git branch -a' );
+		$output   = str_replace( '*', ' ', $output );
+		$output   = str_replace( '  ', '', $output );
+		$output   = explode( "\n", $output );
+		$branches = array();
+		foreach ( $output as $branch ) {
+			if ( strstr( $branch, 'remotes/origin/' ) && !strstr( $branch, 'HEAD' ) ) {
+				$branches[] = str_replace( 'remotes/origin/', '', $branch );
+			}
+		}
+
+		return $branches;
+	}
+
+	public function checkout( $branches ) {
+		if ( !is_array( $branches ) ) {
+			$branches = array( 0 => $branches );
+		}
+
+		$cmd = 'cd ' . $this->repo_storage . '/' . $this->owner . '/' . $this->name;
+		foreach ( $branches as $branch ) {
+			shell_exec( $cmd . ' && git checkout -qf ' . $branch . ' && git rebase -q origin/' . $branch );
+		}
+		$cmd .= ' && git checkout -qf master';
+		shell_exec( $cmd );
+
+		return TRUE;
+	}
+
+	public function pull() {
+		exec( 'cd ' . $this->repo_storage . '/' . $this->owner . '/' . $this->name . ' && git reset --hard HEAD && git fetch -q --all' );
+
+		return TRUE;
+	}
+
+	public function get_commit_status( $branch, $since = NULL ) {
+		$cmd = 'cd ' . $this->repo_storage . '/' . $this->owner . '/' . $this->name . ' && git checkout ' . $branch . ' && git log --all -i --pretty=format:"%an :|: %s"';
+
+		if ( !empty( $since ) ) {
+			$cmd .= ' --since="' . $since . '"';
+		}
+
+		$output  = shell_exec( $cmd );
+		$results = array();
+		if ( $output != NULL ) {
+			$commits = explode( "\n", $output );
+			foreach ( $commits as $message ) {
+				$parts = explode( ' :|: ' , $message );
+
+				global $user_mapping;
+				$user_name = array_find( $parts[0], $user_mapping );
+
+				if ( !isset( $results[$parts[0]] ) ) {
+					$results[$user_name]['violation_count'] = 0;
+				}
+
+				if ( !isset( $results[$user_name]['total_commits'] ) ) {
+					$results[$user_name]['total_commits'] = 0;
+				}
+
+				if ( !isset( $results[$user_name]['messages'] ) ) {
+					$results[$user_name]['messages'] = array();
+				}
+
+
+				if ( !preg_match( '/[W][E][B][-][0-9]+/i', $message ) && !preg_match( '/Merge/i', $message ) ) {
+					$results[$user_name]['violation_count']++;
+					array_push( $results[$user_name]['messages'], $parts[1] );
+				}
+				$results[$parts[0]]['total_commits']++;
+			}
+
+			foreach ( $results as $key => $row ) {
+				$volume[$key] = $row['violation_count'];
+			}
+			array_multisort( $volume, SORT_DESC, $results );
+		}
+
+		return $results;
+	}
+
+	public function get_commit_violations() {
+		$results = array();
+
+		$branch = 'release';
+
+		//foreach ( $this->get_branches() as $branch ) {
+			$results[$branch] = $this->get_commit_status( $branch );
+		//}
+
+		return $results;
+	}
+
+	private function store_results( $json ) {
+		file_put_contents( $this->repo_storage . '/' . $this->owner . '/' . $this->name . '_data.json', $json );
+	}
+}

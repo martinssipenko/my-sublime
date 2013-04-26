@@ -1,0 +1,33 @@
+{
+	"auto_upgrade_last_run": null,
+	"installed_packages":
+	[
+		"Additional PHP Snippets",
+		"Alignment",
+		"ApacheConf.tmLanguage",
+		"BracketHighlighter",
+		"CTags",
+		"CTags for PHP",
+		"DetectSyntax",
+		"DocBlockr",
+		"Emmet",
+		"GitGutter",
+		"Goto Documentation",
+		"jQuery",
+		"Markdown Preview",
+		"nginx",
+		"Package Control",
+		"Phix Color Scheme",
+		"Phpcs",
+		"PhpTidy",
+		"Pretty JSON",
+		"Search WordPress Codex",
+		"SideBarEnhancements",
+		"SublimeCodeIntel",
+		"SublimeLinter",
+		"Sublimerge",
+		"Theme - Soda",
+		"TrailingSpaces",
+		"Wordpress"
+	]
+}
