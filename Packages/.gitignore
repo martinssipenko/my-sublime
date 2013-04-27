@@ -1,3 +1,4 @@
 *.cache
+*.pyc
 User/Package Control.last-run
 gitconfig-sublimetext
